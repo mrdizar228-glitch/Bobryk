@@ -2,425 +2,57 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bobryk - Multi-Agent AI Chat</title>
+    <title>Моя Перша Нейромережа</title>
     <style>
-        :root {
-            --bg-main: #0B0B14;
-            --bg-sidebar: #131320;
-            --bg-panel: #1A1A2B;
-            --accent-pink: #FF3B6B;
-            --accent-pink-hover: #FF1F55;
-            --text-main: #FFFFFF;
-            --text-muted: #8E8E9F;
-            --border-color: #2A2A3D;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Бічна панель */
-        .sidebar {
-            width: 280px;
-            background-color: var(--bg-sidebar);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.3s ease;
-        }
-
-        .profile-section {
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* Розносить профіль наліво, шестірню направо */
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .profile-left-group {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background-color: var(--border-color);
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="%238E8E9F" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
-            background-size: cover;
-        }
-
-        .profile-info h3 {
-            font-size: 16px;
-            color: var(--accent-pink);
-            margin-bottom: 2px;
-        }
-
-        .profile-info p {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .settings-gear {
-            font-size: 20px;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-
-        .settings-gear:hover {
-            color: var(--accent-pink);
-        }
-
-        /* Головне вікно чату */
-        .main-chat {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-main);
-            position: relative;
-        }
-
-        .chat-header {
-            height: 70px;
-            background-color: var(--bg-sidebar);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            padding: 0 25px;
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--accent-pink);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-
-        .chat-history {
-            flex-grow: 1;
-            padding: 25px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .message {
-            max-width: 75%;
-            padding: 15px 20px;
-            border-radius: 12px;
-            line-height: 1.5;
-            font-size: 15px;
-            word-wrap: break-word;
-        }
-
-        .message.user {
-            align-self: flex-end;
-            background-color: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.bot {
-            align-self: flex-start;
-            background-color: rgba(255, 59, 107, 0.1);
-            border: 1px solid rgba(255, 59, 107, 0.3);
-            border-bottom-left-radius: 4px;
-        }
-
-        .message-sender {
-            font-weight: bold;
-            margin-bottom: 5px;
-            font-size: 13px;
-            color: var(--accent-pink);
-        }
-
-        .message.user .message-sender {
-            color: var(--text-muted);
-            text-align: right;
-        }
-
-        /* Індикатор завантаження */
-        .loading-indicator {
-            align-self: flex-start;
-            background-color: transparent;
-            color: var(--accent-pink);
-            font-style: italic;
-            font-size: 14px;
-            display: none;
-            padding: 10px 0;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
-
-        /* Панель вводу */
-        .input-area {
-            padding: 20px 25px;
-            background-color: var(--bg-sidebar);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            gap: 15px;
-        }
-
-        .chat-input {
-            flex-grow: 1;
-            background-color: var(--bg-main);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 15px 20px;
-            border-radius: 8px;
-            font-size: 15px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .chat-input:focus {
-            border-color: var(--accent-pink);
-        }
-
-        .send-btn {
-            background-color: var(--accent-pink);
-            color: white;
-            border: none;
-            padding: 0 30px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-            transition: background-color 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(255, 59, 107, 0.3);
-        }
-
-        .send-btn:hover {
-            background-color: var(--accent-pink-hover);
-            box-shadow: 0 4px 20px rgba(255, 59, 107, 0.5);
-        }
-
-        .send-btn:disabled {
-            background-color: var(--border-color);
-            color: var(--text-muted);
-            box-shadow: none;
-            cursor: not-allowed;
-        }
-
-        .mobile-toggle {
-            display: none;
-            background: none;
-            border: none;
-            color: var(--accent-pink);
-            font-size: 24px;
-            cursor: pointer;
-            margin-right: 15px;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                position: absolute;
-                z-index: 100;
-                height: 100%;
-                transform: translateX(-100%);
-            }
-            .sidebar.open {
-                transform: translateX(0);
-            }
-            .mobile-toggle {
-                display: block;
-            }
-        }
+        body { background-color: #1a1a1a; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
+        input, button { padding: 10px; font-size: 16px; margin: 5px; border-radius: 5px; border: none; }
+        button { background-color: #FF3B6B; color: white; cursor: pointer; font-weight: bold; }
+        #result { font-size: 24px; margin-top: 20px; color: #00FFCC; }
     </style>
+    
+    <script src="https://unpkg.com/brain.js"></script>
 </head>
 <body>
 
-    <div class="sidebar" id="sidebar">
-        <div class="profile-section">
-            <div class="profile-left-group">
-                <div class="avatar"></div>
-                <div class="profile-info">
-                    <h3>Дізар</h3>
-                    <p>ID: dizar_admin</p>
-                </div>
-            </div>
-            <div class="settings-gear" title="Налаштування">⚙️</div>
-        </div>
-        </div>
+    <h1>🧠 Мозок Дізара: Аналізатор Слів</h1>
+    <p>Я навчився відрізняти добрі слова від поганих. Напиши щось!</p>
 
-    <div class="main-chat">
-        <div class="chat-header">
-            <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
-            Bobryk
-        </div>
-        
-        <div class="chat-history" id="chatHistory">
-            <div class="message bot">
-                <div class="message-sender">Bobryk</div>
-                Привіт, Дізаре! Я оновив свій код і промпти. Готовий слухати тебе.
-            </div>
-        </div>
+    <input type="text" id="userInput" placeholder="Наприклад: круто або жах">
+    <button onclick="askAI()">Перевірити ШІ</button>
 
-        <div class="loading-indicator" id="loadingIndicator">
-            Bobryk генерує відповідь...
-        </div>
-
-        <div class="input-area">
-            <input type="text" id="userInput" class="chat-input" placeholder="Напиши повідомлення..." onkeypress="handleKeyPress(event)">
-            <button id="sendBtn" class="send-btn" onclick="processMessage()">ВІДПРАВИТИ</button>
-        </div>
-    </div>
+    <div id="result">Тут буде відповідь нейромережі...</div>
 
     <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
+        // --- ПОЧАТОК JAVASCRIPT --- //
 
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                processMessage();
-            }
-        }
+        // КРОК 1: Створюємо новий порожній мозок (LSTM - це тип мережі для тексту)
+        const net = new brain.recurrent.LSTM();
 
-        function appendMessage(sender, text, isUser = false) {
-            const chatHistory = document.getElementById('chatHistory');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+        // КРОК 2: Тренуємо мозок. Даємо йому приклади!
+        // Ти можеш додавати сюди свої слова пізніше.
+        net.train([
+            { input: 'супер', output: 'ПОЗИТИВ 🟢' },
+            { input: 'клас', output: 'ПОЗИТИВ 🟢' },
+            { input: 'добре', output: 'ПОЗИТИВ 🟢' },
             
-            const senderName = isUser ? 'Дізар' : sender;
-            
-            // Замінюємо переноси рядків на <br> для гарного відображення
-            const formattedText = text.replace(/\n/g, '<br>');
-            
-            msgDiv.innerHTML = `
-                <div class="message-sender">${senderName}</div>
-                <div>${formattedText}</div>
-            `;
-            chatHistory.appendChild(msgDiv);
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        }
+            { input: 'погано', output: 'НЕГАТИВ 🔴' },
+            { input: 'жах', output: 'НЕГАТИВ 🔴' },
+            { input: 'фу', output: 'НЕГАТИВ 🔴' }
+        ], { iterations: 100 }); // iterations - це скільки разів мозок перечитує ці слова, щоб запам'ятати
 
-        function setLoadingState(isLoading) {
-            const indicator = document.getElementById('loadingIndicator');
-            const btn = document.getElementById('sendBtn');
-            const input = document.getElementById('userInput');
+        // КРОК 3: Функція, яка запускається, коли ти натискаєш кнопку
+        function askAI() {
+            // Беремо текст, який ти написав в input
+            const text = document.getElementById('userInput').value.toLowerCase();
             
-            if (isLoading) {
-                indicator.style.display = 'block';
-                btn.disabled = true;
-                input.disabled = true;
-                const chatHistory = document.getElementById('chatHistory');
-                chatHistory.scrollTop = chatHistory.scrollHeight;
+            // Питаємо нейромережу! run() - це запуск аналізу
+            const answer = net.run(text);
+            
+            // Виводимо результат на екран. Якщо мозок не знає слова, він нічого не видасть
+            if (answer === "") {
+                document.getElementById('result').innerText = "Я ще не знаю таких слів, мені треба більше тренувань!";
             } else {
-                indicator.style.display = 'none';
-                btn.disabled = false;
-                input.disabled = false;
-                input.focus();
-            }
-        }
-
-        /* =========================================================
-           ПРОМПТИ ТА МОДЕЛІ (Емуляція)
-           ========================================================= */
-        
-        // Загальний промпт для експертів
-        const expertSystemPrompt = 'ти маєш бути дуже мудрий акцент і ти маєш поводитися начебто я тобі старий знайомий';
-
-        async function fetchChatGPT(prompt) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    resolve(`Здоров був, Дізаре. Щодо твого повідомлення "${prompt}", то з мого досвіду можу сказати...`);
-                }, 1000);
-            });
-        }
-
-        async function fetchClaude(prompt) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    resolve(`Привіт, старий друже! Знаєш, коли ти питаєш "${prompt}", я згадую, як важливо бачити суть речей...`);
-                }, 1500);
-            });
-        }
-
-        async function fetchDeepSeek(prompt) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    resolve(`Вітаю. Твоє питання "${prompt}" змушує задуматись. Як твій давній товариш, я пропоную такий підхід...`);
-                }, 1200);
-            });
-        }
-
-        /* =========================================================
-           GEMINI 3 FLASH - Головний редактор
-           ========================================================= */
-        async function fetchGeminiFlash(chatGptResponse, claudeResponse, deepSeekResponse) {
-            // Точний промпт як ти просив
-            const systemPrompt = `Ти маєш вибрати щось з того що написали нейросеті і додати трохи своє
-ChatGPT-5.2: "${chatGptResponse}"
-Claude 4.5: "${claudeResponse}"
-DeepSeek: "${deepSeekResponse}"
-не пиши нічого лишнього тільки тещо тобі сказали написати.`;
-
-            console.log("--- PROMPT FOR GEMINI 3 FLASH ---");
-            console.log(systemPrompt);
-
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    // Фінальна відповідь, яку бачить користувач
-                    const finalAnswer = `З того, що сказали мої колеги, ось головне:\n\n` +
-                                        `ChatGPT-5.2 каже, що з його досвіду треба бути обережним. Claude радить бачити суть речей. А DeepSeek пропонує практичний підхід.\n\n` +
-                                        `Від себе додам: старий друже, роби так, як підказує твоя інтуїція, адже ти краще знаєш свій проект!`;
-                    resolve(finalAnswer);
-                }, 2000);
-            });
-        }
-
-        /* =========================================================
-           ГОЛОВНА ЛОГІКА ВІДПРАВКИ
-           ========================================================= */
-        async function processMessage() {
-            const inputField = document.getElementById('userInput');
-            const text = inputField.value.trim();
-            
-            if (!text) return;
-            
-            appendMessage('Дізар', text, true);
-            inputField.value = '';
-            setLoadingState(true);
-
-            try {
-                // Відправляємо повідомлення з промптом експертам
-                console.log(`Sending to experts: ${expertSystemPrompt} \nUser text: ${text}`);
-                
-                const [chatGptRes, claudeRes, deepSeekRes] = await Promise.all([
-                    fetchChatGPT(text),
-                    fetchClaude(text),
-                    fetchDeepSeek(text)
-                ]);
-
-                // Відправляємо результати в Gemini 3 Flash
-                const finalAnswer = await fetchGeminiFlash(chatGptRes, claudeRes, deepSeekRes);
-
-                setLoadingState(false);
-                appendMessage('Bobryk', finalAnswer, false);
-
-            } catch (error) {
-                console.error("Помилка:", error);
-                setLoadingState(false);
-                appendMessage('Bobryk', "Сталася помилка. Спробуй ще раз.", false);
+                document.getElementById('result').innerText = "Я думаю, що це: " + answer;
             }
         }
     </script>
