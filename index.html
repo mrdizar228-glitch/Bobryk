@@ -2,59 +2,215 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Моя Перша Нейромережа</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ШІ Бобрик: Хмарна Версія</title>
     <style>
-        body { background-color: #1a1a1a; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
-        input, button { padding: 10px; font-size: 16px; margin: 5px; border-radius: 5px; border: none; }
-        button { background-color: #FF3B6B; color: white; cursor: pointer; font-weight: bold; }
-        #result { font-size: 24px; margin-top: 20px; color: #00FFCC; }
+        body { 
+            background-color: #0B0B14; 
+            color: #FFFFFF; 
+            font-family: 'Courier New', Courier, monospace; 
+            text-align: center; 
+            padding: 20px; 
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #FF3B6B; }
+        
+        .stats {
+            background-color: #1A1A2B;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #FF3B6B;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .coins { color: #FFD700; font-weight: bold; font-size: 24px; }
+        .ai-mood { color: #00FFCC; font-style: italic; font-size: 16px; }
+
+        input { padding: 12px; font-size: 16px; width: 60%; border-radius: 5px; border: 1px solid #8E8E9F; background: #131320; color: white; margin-bottom: 15px;}
+        button { padding: 12px 20px; font-size: 16px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; margin: 5px; transition: 0.2s;}
+        
+        .btn-guess { background-color: #8A2BE2; color: white; }
+        .btn-pos { background-color: #28a745; color: white; display: none; }
+        .btn-neg { background-color: #dc3545; color: white; display: none; }
+        button:hover { opacity: 0.8; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+
+        #ai-answer-box {
+            font-size: 22px;
+            margin: 20px 0;
+            min-height: 40px;
+            color: #FF3B6B;
+        }
+
+        .database-view {
+            background-color: #000;
+            border: 1px solid #00FFCC;
+            padding: 15px;
+            height: 250px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 14px;
+            color: #00FFCC;
+            margin-top: 30px;
+        }
+        .db-entry { border-bottom: 1px dashed #333; padding: 5px 0; }
+        .cloud-status { color: #28a745; font-weight: bold; margin-bottom: 10px; display: inline-block; }
     </style>
-    
     <script src="https://unpkg.com/brain.js"></script>
 </head>
 <body>
 
-    <h1>🧠 Мозок Дізара: Аналізатор Слів</h1>
-    <p>Я навчився відрізняти добрі слова від поганих. Напиши щось!</p>
+    <div class="container">
+        <h1>🧠 ШІ Дізара: Підключено до Firebase ☁️</h1>
+        <div class="cloud-status" id="cloudStatus">Підключення до Firebase...</div>
+        
+        <div class="stats">
+            Баланс ШІ: <span class="coins" id="coinCounter">0 💰</span><br>
+            <span class="ai-mood" id="aiMood">"Чекаю завантаження спогадів..."</span>
+        </div>
 
-    <input type="text" id="userInput" placeholder="Наприклад: круто або жах">
-    <button onclick="askAI()">Перевірити ШІ</button>
+        <input type="text" id="userInput" placeholder="Введи слово (напр. 'геніально')">
+        <br>
+        <button class="btn-guess" id="btnGuess">Хай ШІ вгадає!</button>
 
-    <div id="result">Тут буде відповідь нейромережі...</div>
+        <div id="ai-answer-box"></div>
 
-    <script>
-        // --- ПОЧАТОК JAVASCRIPT --- //
+        <div id="feedback-controls">
+            <button class="btn-pos" id="btnPos">👍 Це було ПОЗИТИВНЕ</button>
+            <button class="btn-neg" id="btnNeg">👎 Це було НЕГАТИВНЕ</button>
+        </div>
 
-        // КРОК 1: Створюємо новий порожній мозок (LSTM - це тип мережі для тексту)
+        <h3>База даних (Дані з Хмари):</h3>
+        <div class="database-view" id="databaseView">
+            </div>
+    </div>
+
+    <script type="module">
+        // Імпортуємо Firebase з інтернету
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // Твої налаштування
+        const firebaseConfig = {
+          apiKey: "AIzaSyBzULZynTaeLfR1oWccTB2vydEm8I3cg_A",
+          authDomain: "ai-bobryk.firebaseapp.com",
+          databaseURL: "https://ai-bobryk-default-rtdb.firebaseio.com",
+          projectId: "ai-bobryk",
+          storageBucket: "ai-bobryk.firebasestorage.app",
+          messagingSenderId: "414534255177",
+          appId: "1:414534255177:web:53d7d8f20f2369861f7598"
+        };
+
+        // Запуск Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Посилання на таблиці в базі даних
+        const wordsRef = ref(db, 'ai_memory/words');
+        const coinsRef = ref(db, 'ai_memory/coins');
+
+        // Змінні ШІ
         const net = new brain.recurrent.LSTM();
+        let aiCoins = 0;
+        let currentWord = "";
+        let currentGuess = "";
+        let trainingData = [];
 
-        // КРОК 2: Тренуємо мозок. Даємо йому приклади!
-        // Ти можеш додавати сюди свої слова пізніше.
-        net.train([
-            { input: 'супер', output: 'ПОЗИТИВ 🟢' },
-            { input: 'клас', output: 'ПОЗИТИВ 🟢' },
-            { input: 'добре', output: 'ПОЗИТИВ 🟢' },
-            
-            { input: 'погано', output: 'НЕГАТИВ 🔴' },
-            { input: 'жах', output: 'НЕГАТИВ 🔴' },
-            { input: 'фу', output: 'НЕГАТИВ 🔴' }
-        ], { iterations: 100 }); // iterations - це скільки разів мозок перечитує ці слова, щоб запам'ятати
-
-        // КРОК 3: Функція, яка запускається, коли ти натискаєш кнопку
-        function askAI() {
-            // Беремо текст, який ти написав в input
-            const text = document.getElementById('userInput').value.toLowerCase();
-            
-            // Питаємо нейромережу! run() - це запуск аналізу
-            const answer = net.run(text);
-            
-            // Виводимо результат на екран. Якщо мозок не знає слова, він нічого не видасть
-            if (answer === "") {
-                document.getElementById('result').innerText = "Я ще не знаю таких слів, мені треба більше тренувань!";
-            } else {
-                document.getElementById('result').innerText = "Я думаю, що це: " + answer;
+        // 1. ЗАВАНТАЖЕННЯ МОНЕТ З ХМАРИ
+        onValue(coinsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data !== null) {
+                aiCoins = data;
+                document.getElementById('coinCounter').innerText = `${aiCoins} 💰`;
             }
+        });
+
+        // 2. ЗАВАНТАЖЕННЯ СЛІВ З ХМАРИ ТА ТРЕНУВАННЯ
+        onValue(wordsRef, (snapshot) => {
+            const data = snapshot.val();
+            const dbView = document.getElementById('databaseView');
+            dbView.innerHTML = ''; // Очищаємо екран перед оновленням
+            trainingData = [];
+
+            if (data) {
+                // Якщо в базі є слова, додаємо їх в пам'ять
+                Object.values(data).forEach(entry => {
+                    trainingData.push({ input: entry.word, output: entry.answer });
+                    
+                    const newEntry = document.createElement('div');
+                    newEntry.className = 'db-entry';
+                    newEntry.innerText = `[FIREBASE] Слово: "${entry.word}" -> Числа: [${entry.encrypted}] | Результат: ${entry.answer === 'ПОЗИТИВ' ? '1' : '0'}`;
+                    dbView.prepend(newEntry);
+                });
+
+                document.getElementById('aiMood').innerText = `"Я згадала ${trainingData.length} слів з хмари! Тренуюсь..."`;
+                document.getElementById('cloudStatus').innerText = "✅ Firebase підключено!";
+                
+                // Тренуємо ШІ всім, що завантажили
+                net.train(trainingData, { iterations: 50 });
+                document.getElementById('aiMood').innerText = `"Готова до нових слів!"`;
+            } else {
+                // Якщо база порожня, даємо базові знання
+                trainingData = [
+                    { input: 'супер', output: 'ПОЗИТИВ' },
+                    { input: 'жах', output: 'НЕГАТИВ' }
+                ];
+                net.train(trainingData, { iterations: 50 });
+                document.getElementById('cloudStatus').innerText = "✅ База чиста. Можна записувати!";
+            }
+        });
+
+        // 3. ЛОГІКА ВГАДУВАННЯ
+        document.getElementById('btnGuess').addEventListener('click', () => {
+            currentWord = document.getElementById('userInput').value.toLowerCase().trim();
+            if(!currentWord) return;
+
+            currentGuess = net.run(currentWord);
+            if (currentGuess === "") {
+                currentGuess = (Math.random() > 0.5) ? 'ПОЗИТИВ' : 'НЕГАТИВ';
+            }
+
+            document.getElementById('ai-answer-box').innerHTML = `Я думаю, що слово <b>"${currentWord}"</b> — це <b>${currentGuess}</b>. Я вгадала?`;
+            
+            document.getElementById('btnGuess').style.display = 'none';
+            document.getElementById('btnPos').style.display = 'inline-block';
+            document.getElementById('btnNeg').style.display = 'inline-block';
+            document.getElementById('userInput').disabled = true;
+        });
+
+        // 4. ФУНКЦІЯ: ВІДПРАВКА ДАНИХ В FIREBASE
+        function handleFeedback(actualAnswer) {
+            if (currentGuess === actualAnswer) {
+                aiCoins += 1;
+                document.getElementById('aiMood').innerText = `"ЄЄЄ! Монетки летять у хмару!"`;
+            } else {
+                document.getElementById('aiMood').innerText = `"Запам'ятала! Записую правильну відповідь у Firebase."`;
+            }
+
+            // Шифрування
+            let encryptedWord = currentWord.split('').map(char => char.charCodeAt(0)).join(' ');
+
+            // ВІДПРАВЛЯЄМО В FIREBASE
+            set(coinsRef, aiCoins); // Оновлюємо монети
+            push(wordsRef, {        // Записуємо нове слово
+                word: currentWord,
+                answer: actualAnswer,
+                encrypted: encryptedWord
+            });
+
+            // Повертаємо інтерфейс
+            document.getElementById('btnGuess').style.display = 'inline-block';
+            document.getElementById('btnPos').style.display = 'none';
+            document.getElementById('btnNeg').style.display = 'none';
+            document.getElementById('userInput').disabled = false;
+            document.getElementById('userInput').value = "";
+            document.getElementById('ai-answer-box').innerText = "Записано! Давай наступне.";
         }
+
+        // Прив'язуємо кнопки до функції
+        document.getElementById('btnPos').addEventListener('click', () => handleFeedback('ПОЗИТИВ'));
+        document.getElementById('btnNeg').addEventListener('click', () => handleFeedback('НЕГАТИВ'));
+
     </script>
 </body>
 </html>
