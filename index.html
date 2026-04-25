@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ШІ Бобрик: Хмарна Версія</title>
+    <title>ШІ Бобрик: Хмарна Версія V2</title>
     <style>
         body { 
             background-color: #0B0B14; 
@@ -32,6 +32,10 @@
         .btn-guess { background-color: #8A2BE2; color: white; }
         .btn-pos { background-color: #28a745; color: white; display: none; }
         .btn-neg { background-color: #dc3545; color: white; display: none; }
+        
+        /* Кнопка очищення бази */
+        .btn-clear { background-color: #ff0000; color: white; font-size: 14px; padding: 8px 15px; margin-top: 30px; border: 1px solid #ffaaaa; }
+        
         button:hover { opacity: 0.8; }
         button:disabled { background-color: #555; cursor: not-allowed; }
 
@@ -51,7 +55,7 @@
             text-align: left;
             font-size: 14px;
             color: #00FFCC;
-            margin-top: 30px;
+            margin-top: 20px;
         }
         .db-entry { border-bottom: 1px dashed #333; padding: 5px 0; }
         .cloud-status { color: #28a745; font-weight: bold; margin-bottom: 10px; display: inline-block; }
@@ -81,16 +85,16 @@
         </div>
 
         <h3>База даних (Дані з Хмари):</h3>
-        <div class="database-view" id="databaseView">
-            </div>
+        <div class="database-view" id="databaseView"></div>
+
+        <button class="btn-clear" id="btnClear">⚠️ СТЕРТИ ВСЮ ПАМ'ЯТЬ БАЗИ</button>
     </div>
 
     <script type="module">
-        // Імпортуємо Firebase з інтернету
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        // ДОДАНО команду remove для видалення даних!
+        import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Твої налаштування
         const firebaseConfig = {
           apiKey: "AIzaSyBzULZynTaeLfR1oWccTB2vydEm8I3cg_A",
           authDomain: "ai-bobryk.firebaseapp.com",
@@ -101,66 +105,61 @@
           appId: "1:414534255177:web:53d7d8f20f2369861f7598"
         };
 
-        // Запуск Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Посилання на таблиці в базі даних
         const wordsRef = ref(db, 'ai_memory/words');
         const coinsRef = ref(db, 'ai_memory/coins');
 
-        // Змінні ШІ
         const net = new brain.recurrent.LSTM();
         let aiCoins = 0;
         let currentWord = "";
         let currentGuess = "";
         let trainingData = [];
 
-        // 1. ЗАВАНТАЖЕННЯ МОНЕТ З ХМАРИ
+        // 1. ЗАВАНТАЖЕННЯ МОНЕТ
         onValue(coinsRef, (snapshot) => {
             const data = snapshot.val();
             if (data !== null) {
                 aiCoins = data;
                 document.getElementById('coinCounter').innerText = `${aiCoins} 💰`;
+            } else {
+                aiCoins = 0;
+                document.getElementById('coinCounter').innerText = `0 💰`;
             }
         });
 
-        // 2. ЗАВАНТАЖЕННЯ СЛІВ З ХМАРИ ТА ТРЕНУВАННЯ
+        // 2. ЗАВАНТАЖЕННЯ СЛІВ (і обробка порожньої бази)
         onValue(wordsRef, (snapshot) => {
             const data = snapshot.val();
             const dbView = document.getElementById('databaseView');
-            dbView.innerHTML = ''; // Очищаємо екран перед оновленням
+            dbView.innerHTML = ''; 
             trainingData = [];
 
             if (data) {
-                // Якщо в базі є слова, додаємо їх в пам'ять
                 Object.values(data).forEach(entry => {
                     trainingData.push({ input: entry.word, output: entry.answer });
-                    
                     const newEntry = document.createElement('div');
                     newEntry.className = 'db-entry';
                     newEntry.innerText = `[FIREBASE] Слово: "${entry.word}" -> Числа: [${entry.encrypted}] | Результат: ${entry.answer === 'ПОЗИТИВ' ? '1' : '0'}`;
                     dbView.prepend(newEntry);
                 });
 
-                document.getElementById('aiMood').innerText = `"Я згадала ${trainingData.length} слів з хмари! Тренуюсь..."`;
                 document.getElementById('cloudStatus').innerText = "✅ Firebase підключено!";
-                
-                // Тренуємо ШІ всім, що завантажили
                 net.train(trainingData, { iterations: 50 });
-                document.getElementById('aiMood').innerText = `"Готова до нових слів!"`;
             } else {
-                // Якщо база порожня, даємо базові знання
+                // Якщо базу стерли, повертаємо її до заводських налаштувань (2 слова)
                 trainingData = [
                     { input: 'супер', output: 'ПОЗИТИВ' },
                     { input: 'жах', output: 'НЕГАТИВ' }
                 ];
                 net.train(trainingData, { iterations: 50 });
-                document.getElementById('cloudStatus').innerText = "✅ База чиста. Можна записувати!";
+                dbView.innerHTML = '<div class="db-entry" style="color:#ffaaaa;">База даних порожня. Запиши перше слово!</div>';
+                document.getElementById('cloudStatus').innerText = "✅ База чиста. Можна писати з нуля!";
             }
         });
 
-        // 3. ЛОГІКА ВГАДУВАННЯ
+        // 3. ВГАДУВАННЯ
         document.getElementById('btnGuess').addEventListener('click', () => {
             currentWord = document.getElementById('userInput').value.toLowerCase().trim();
             if(!currentWord) return;
@@ -178,25 +177,34 @@
             document.getElementById('userInput').disabled = true;
         });
 
-        // 4. ФУНКЦІЯ: ВІДПРАВКА ДАНИХ В FIREBASE
+        // 4. ВІДПРАВКА ДАНИХ (ІЗ ЗАХИСТОМ ВІД ДУБЛІКАТІВ)
         function handleFeedback(actualAnswer) {
-            if (currentGuess === actualAnswer) {
-                aiCoins += 1;
-                document.getElementById('aiMood').innerText = `"ЄЄЄ! Монетки летять у хмару!"`;
+            // ПЕРЕВІРКА НА ДУБЛІКАТ: чи є слово вже в масиві trainingData?
+            let isDuplicate = trainingData.some(entry => entry.input === currentWord);
+
+            if (isDuplicate) {
+                // Якщо слово вже є
+                document.getElementById('aiMood').innerText = `"Гей! Я вже знаю слово '${currentWord}'! Не дури мене дублями!"`;
+                document.getElementById('ai-answer-box').innerText = "Слово вже в базі! Спробуй інше.";
             } else {
-                document.getElementById('aiMood').innerText = `"Запам'ятала! Записую правильну відповідь у Firebase."`;
+                // Якщо слово нове
+                if (currentGuess === actualAnswer) {
+                    aiCoins += 1;
+                    document.getElementById('aiMood').innerText = `"ЄЄЄ! Нове слово і монетки летять у хмару!"`;
+                } else {
+                    document.getElementById('aiMood').innerText = `"Ого, нове слово! Записую правильну відповідь у Firebase."`;
+                }
+
+                let encryptedWord = currentWord.split('').map(char => char.charCodeAt(0)).join(' ');
+
+                set(coinsRef, aiCoins);
+                push(wordsRef, {
+                    word: currentWord,
+                    answer: actualAnswer,
+                    encrypted: encryptedWord
+                });
+                document.getElementById('ai-answer-box').innerText = "Записано! Давай наступне.";
             }
-
-            // Шифрування
-            let encryptedWord = currentWord.split('').map(char => char.charCodeAt(0)).join(' ');
-
-            // ВІДПРАВЛЯЄМО В FIREBASE
-            set(coinsRef, aiCoins); // Оновлюємо монети
-            push(wordsRef, {        // Записуємо нове слово
-                word: currentWord,
-                answer: actualAnswer,
-                encrypted: encryptedWord
-            });
 
             // Повертаємо інтерфейс
             document.getElementById('btnGuess').style.display = 'inline-block';
@@ -204,12 +212,25 @@
             document.getElementById('btnNeg').style.display = 'none';
             document.getElementById('userInput').disabled = false;
             document.getElementById('userInput').value = "";
-            document.getElementById('ai-answer-box').innerText = "Записано! Давай наступне.";
+            document.getElementById('userInput').focus();
         }
 
-        // Прив'язуємо кнопки до функції
         document.getElementById('btnPos').addEventListener('click', () => handleFeedback('ПОЗИТИВ'));
         document.getElementById('btnNeg').addEventListener('click', () => handleFeedback('НЕГАТИВ'));
+
+        // 5. КНОПКА ЗНИЩЕННЯ БАЗИ (WIPE)
+        document.getElementById('btnClear').addEventListener('click', () => {
+            // Виводимо вікно з попередженням
+            let confirmWipe = confirm("УВАГА! Ти точно хочеш стерти ШІ всю пам'ять і обнулити монети? Цю дію неможливо скасувати!");
+            
+            if (confirmWipe) {
+                // Видаляємо папку 'words' і обнуляємо монети у Firebase
+                remove(wordsRef);
+                set(coinsRef, 0);
+                document.getElementById('aiMood').innerText = `"Моя пам'ять стерта... Хто я? Де я?"`;
+                document.getElementById('ai-answer-box').innerText = "";
+            }
+        });
 
     </script>
 </body>
