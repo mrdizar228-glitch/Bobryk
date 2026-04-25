@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bobryk - Multi-Agent AI Chat</title>
     <style>
-        /* Базові змінні кольорів на основі скріншотів */
         :root {
             --bg-main: #0B0B14;
             --bg-sidebar: #131320;
@@ -32,7 +31,7 @@
             overflow: hidden;
         }
 
-        /* Бічна панель (Sidebar) */
+        /* Бічна панель */
         .sidebar {
             width: 280px;
             background-color: var(--bg-sidebar);
@@ -46,8 +45,14 @@
             padding: 20px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            justify-content: space-between; /* Розносить профіль наліво, шестірню направо */
             border-bottom: 1px solid var(--border-color);
+        }
+
+        .profile-left-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .avatar {
@@ -70,31 +75,15 @@
             color: var(--text-muted);
         }
 
-        .nav-menu {
-            list-style: none;
-            padding: 20px 0;
-            flex-grow: 1;
-        }
-
-        .nav-item {
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
+        .settings-gear {
+            font-size: 20px;
             color: var(--text-muted);
-            font-weight: 600;
             cursor: pointer;
-            transition: 0.2s;
-            font-size: 14px;
+            transition: color 0.2s;
         }
 
-        .nav-item:hover, .nav-item.active {
-            background-color: rgba(255, 59, 107, 0.05);
-            color: var(--text-main);
-        }
-
-        .nav-item.active {
-            border-left: 4px solid var(--accent-pink);
+        .settings-gear:hover {
+            color: var(--accent-pink);
         }
 
         /* Головне вікно чату */
@@ -231,7 +220,6 @@
             cursor: not-allowed;
         }
 
-        /* Мобільна адаптивність */
         .mobile-toggle {
             display: none;
             background: none;
@@ -262,21 +250,16 @@
 
     <div class="sidebar" id="sidebar">
         <div class="profile-section">
-            <div class="avatar"></div>
-            <div class="profile-info">
-                <h3>Дізар</h3>
-                <p>ID: dizar_admin</p>
+            <div class="profile-left-group">
+                <div class="avatar"></div>
+                <div class="profile-info">
+                    <h3>Дізар</h3>
+                    <p>ID: dizar_admin</p>
+                </div>
             </div>
+            <div class="settings-gear" title="Налаштування">⚙️</div>
         </div>
-        <ul class="nav-menu">
-            <li class="nav-item">👥 МОЇ ДРУЗІ</li>
-            <li class="nav-item">🔍 ЗНАЙТИ ДРУГА</li>
-            <li class="nav-item">📩 ЗАПИТИ (0)</li>
-            <li class="nav-item active">💬 КАНАЛИ (Bobryk)</li>
-            <li class="nav-item">🔎 ЗНАЙТИ КАНАЛ</li>
-            <li class="nav-item">⚙️ НАЛАШТУВАННЯ</li>
-        </ul>
-    </div>
+        </div>
 
     <div class="main-chat">
         <div class="chat-header">
@@ -287,12 +270,12 @@
         <div class="chat-history" id="chatHistory">
             <div class="message bot">
                 <div class="message-sender">Bobryk</div>
-                Привіт, Дізаре! Я на зв'язку. Моя багатоагентна система готова до твоїх завдань.
+                Привіт, Дізаре! Я оновив свій код і промпти. Готовий слухати тебе.
             </div>
         </div>
 
         <div class="loading-indicator" id="loadingIndicator">
-            Bobryk is thinking (consulting experts)...
+            Bobryk генерує відповідь...
         </div>
 
         <div class="input-area">
@@ -302,19 +285,16 @@
     </div>
 
     <script>
-        // Адаптивність: перемикач бічної панелі для мобільних
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        // Обробка натискання Enter
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 processMessage();
             }
         }
 
-        // Додавання повідомлення в UI
         function appendMessage(sender, text, isUser = false) {
             const chatHistory = document.getElementById('chatHistory');
             const msgDiv = document.createElement('div');
@@ -322,15 +302,17 @@
             
             const senderName = isUser ? 'Дізар' : sender;
             
+            // Замінюємо переноси рядків на <br> для гарного відображення
+            const formattedText = text.replace(/\n/g, '<br>');
+            
             msgDiv.innerHTML = `
                 <div class="message-sender">${senderName}</div>
-                <div>${text}</div>
+                <div>${formattedText}</div>
             `;
             chatHistory.appendChild(msgDiv);
             chatHistory.scrollTop = chatHistory.scrollHeight;
         }
 
-        // Управління індикатором завантаження та кнопкою
         function setLoadingState(isLoading) {
             const indicator = document.getElementById('loadingIndicator');
             const btn = document.getElementById('sendBtn');
@@ -340,7 +322,6 @@
                 indicator.style.display = 'block';
                 btn.disabled = true;
                 input.disabled = true;
-                // Скрол до індикатора
                 const chatHistory = document.getElementById('chatHistory');
                 chatHistory.scrollTop = chatHistory.scrollHeight;
             } else {
@@ -352,103 +333,94 @@
         }
 
         /* =========================================================
-           STEP A: The "Three Experts" (Parallel Execution)
-           Placeholder API functions returning Mock Promises
+           ПРОМПТИ ТА МОДЕЛІ (Емуляція)
            ========================================================= */
         
-        async function fetchChatGPT5(prompt) {
+        // Загальний промпт для експертів
+        const expertSystemPrompt = 'ти маєш бути дуже мудрий акцент і ти маєш поводитися начебто я тобі старий знайомий';
+
+        async function fetchChatGPT(prompt) {
             return new Promise(resolve => {
                 setTimeout(() => {
-                    resolve(`[ChatGPT 5]: Аналіз питання "${prompt}". З логічної точки зору, це вимагає структурованого підходу. Факти свідчать про те, що... (базова інформація).`);
-                }, 1500); // Імітація затримки мережі
+                    resolve(`Здоров був, Дізаре. Щодо твого повідомлення "${prompt}", то з мого досвіду можу сказати...`);
+                }, 1000);
             });
         }
 
         async function fetchClaude(prompt) {
             return new Promise(resolve => {
                 setTimeout(() => {
-                    resolve(`[Claude]: Звертаючи увагу на нюанси запиту "${prompt}", важливо врахувати контекст та етичні аспекти. Глибокий аналіз показує... (детальний розбір).`);
-                }, 2000);
+                    resolve(`Привіт, старий друже! Знаєш, коли ти питаєш "${prompt}", я згадую, як важливо бачити суть речей...`);
+                }, 1500);
             });
         }
 
         async function fetchDeepSeek(prompt) {
             return new Promise(resolve => {
                 setTimeout(() => {
-                    resolve(`[DeepSeek]: Запит "${prompt}" опрацьовано. Оптимальне рішення або технічна складова виглядає наступним чином... (сухі факти/код).`);
+                    resolve(`Вітаю. Твоє питання "${prompt}" змушує задуматись. Як твій давній товариш, я пропоную такий підхід...`);
                 }, 1200);
             });
         }
 
         /* =========================================================
-           STEP B: The "Master Editor" (Gemini 3 Flash)
+           GEMINI 3 FLASH - Головний редактор
            ========================================================= */
-        
-        async function fetchGemini3Flash(userPrompt, combinedPayload) {
-            // STRICT SYSTEM PROMPT as requested
-            const systemPrompt = "You are Bobryk. You have a very wise tone and you must behave as if I am an old friend of yours. Review the following three answers provided by ChatGPT, Claude, and DeepSeek. Choose the best, most accurate information from each, combine them seamlessly, add a little bit of your own wisdom and insight, and write the final response to the user.";
-            
-            console.log("--- SYSTEM PROMPT LOADED ---");
+        async function fetchGeminiFlash(chatGptResponse, claudeResponse, deepSeekResponse) {
+            // Точний промпт як ти просив
+            const systemPrompt = `Ти маєш вибрати щось з того що написали нейросеті і додати трохи своє
+ChatGPT-5.2: "${chatGptResponse}"
+Claude 4.5: "${claudeResponse}"
+DeepSeek: "${deepSeekResponse}"
+не пиши нічого лишнього тільки тещо тобі сказали написати.`;
+
+            console.log("--- PROMPT FOR GEMINI 3 FLASH ---");
             console.log(systemPrompt);
-            console.log("--- PAYLOAD FROM EXPERTS ---");
-            console.log(combinedPayload);
 
             return new Promise(resolve => {
                 setTimeout(() => {
-                    // Імітація обробки даних від трьох моделей та формування фінальної відповіді
-                    const finalResponse = `Дізаре, старий друже, я проаналізував твоє питання. <br><br>
-                    Зібравши найкраще від моїх "агентів": логічну базу, глибокий контекст та технічну точність, можу сказати наступне. 
-                    Питання <i>"${userPrompt}"</i> вирішується комплексно. <br><br>
-                    <b>Моя особиста мудрість:</b> завжди дивись глибше, ніж показують сухі дані. Я поєднав ці знання для тебе у єдину картину.`;
-                    
-                    resolve(finalResponse);
-                }, 2500); // Редагування займає трохи більше часу
+                    // Фінальна відповідь, яку бачить користувач
+                    const finalAnswer = `З того, що сказали мої колеги, ось головне:\n\n` +
+                                        `ChatGPT-5.2 каже, що з його досвіду треба бути обережним. Claude радить бачити суть речей. А DeepSeek пропонує практичний підхід.\n\n` +
+                                        `Від себе додам: старий друже, роби так, як підказує твоя інтуїція, адже ти краще знаєш свій проект!`;
+                    resolve(finalAnswer);
+                }, 2000);
             });
         }
 
         /* =========================================================
-           ГОЛОВНИЙ КОНТРОЛЕР ПОТОКУ (Main execution flow)
+           ГОЛОВНА ЛОГІКА ВІДПРАВКИ
            ========================================================= */
-        
         async function processMessage() {
             const inputField = document.getElementById('userInput');
             const text = inputField.value.trim();
             
             if (!text) return;
             
-            // 1. Показуємо повідомлення користувача
             appendMessage('Дізар', text, true);
             inputField.value = '';
-            
-            // 2. Вмикаємо стан завантаження
             setLoadingState(true);
 
             try {
-                // STEP A: Паралельний виклик трьох експертів (Promise.all)
-                const [chatgptResponse, claudeResponse, deepseekResponse] = await Promise.all([
-                    fetchChatGPT5(text),
+                // Відправляємо повідомлення з промптом експертам
+                console.log(`Sending to experts: ${expertSystemPrompt} \nUser text: ${text}`);
+                
+                const [chatGptRes, claudeRes, deepSeekRes] = await Promise.all([
+                    fetchChatGPT(text),
                     fetchClaude(text),
                     fetchDeepSeek(text)
                 ]);
 
-                // Формування єдиного масиву даних (Payload)
-                const combinedPayload = `
-                    RESPONSE 1: ${chatgptResponse}
-                    RESPONSE 2: ${claudeResponse}
-                    RESPONSE 3: ${deepseekResponse}
-                `;
+                // Відправляємо результати в Gemini 3 Flash
+                const finalAnswer = await fetchGeminiFlash(chatGptRes, claudeRes, deepSeekRes);
 
-                // STEP B: Відправка Master Editor-у
-                const finalAnswer = await fetchGemini3Flash(text, combinedPayload);
-
-                // STEP C: Вивід результату
                 setLoadingState(false);
                 appendMessage('Bobryk', finalAnswer, false);
 
             } catch (error) {
-                console.error("Сталася помилка в пайплайні штучного інтелекту:", error);
+                console.error("Помилка:", error);
                 setLoadingState(false);
-                appendMessage('Bobryk', "Вибач, Дізаре, сталася системна помилка при опитуванні агентів.", false);
+                appendMessage('Bobryk', "Сталася помилка. Спробуй ще раз.", false);
             }
         }
     </script>
