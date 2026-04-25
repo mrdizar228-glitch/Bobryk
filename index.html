@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ШІ Бобрик: Хмарна Версія V2</title>
+    <title>ШІ Бобрик: Хмарна Версія V3 (Редактор)</title>
     <style>
         body { 
             background-color: #0B0B14; 
@@ -32,10 +32,21 @@
         .btn-guess { background-color: #8A2BE2; color: white; }
         .btn-pos { background-color: #28a745; color: white; display: none; }
         .btn-neg { background-color: #dc3545; color: white; display: none; }
-        
-        /* Кнопка очищення бази */
         .btn-clear { background-color: #ff0000; color: white; font-size: 14px; padding: 8px 15px; margin-top: 30px; border: 1px solid #ffaaaa; }
         
+        /* Стиль для кнопки точкового видалення */
+        .btn-delete-item {
+            background-color: transparent;
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-left: 10px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .btn-delete-item:hover { background-color: #ff4444; color: white; }
+
         button:hover { opacity: 0.8; }
         button:disabled { background-color: #555; cursor: not-allowed; }
 
@@ -57,7 +68,16 @@
             color: #00FFCC;
             margin-top: 20px;
         }
-        .db-entry { border-bottom: 1px dashed #333; padding: 5px 0; }
+        
+        /* Робимо так, щоб кнопка була праворуч від тексту */
+        .db-entry { 
+            border-bottom: 1px dashed #333; 
+            padding: 8px 0; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        
         .cloud-status { color: #28a745; font-weight: bold; margin-bottom: 10px; display: inline-block; }
     </style>
     <script src="https://unpkg.com/brain.js"></script>
@@ -65,7 +85,7 @@
 <body>
 
     <div class="container">
-        <h1>🧠 ШІ Дізара: Підключено до Firebase ☁️</h1>
+        <h1>🧠 ШІ Дізара: Хмарний Адмін ☁️</h1>
         <div class="cloud-status" id="cloudStatus">Підключення до Firebase...</div>
         
         <div class="stats">
@@ -92,7 +112,6 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // ДОДАНО команду remove для видалення даних!
         import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
@@ -129,7 +148,7 @@
             }
         });
 
-        // 2. ЗАВАНТАЖЕННЯ СЛІВ (і обробка порожньої бази)
+        // 2. ЗАВАНТАЖЕННЯ СЛІВ (ІЗ КНОПКАМИ ТОЧКОВОГО ВИДАЛЕННЯ)
         onValue(wordsRef, (snapshot) => {
             const data = snapshot.val();
             const dbView = document.getElementById('databaseView');
@@ -137,24 +156,45 @@
             trainingData = [];
 
             if (data) {
-                Object.values(data).forEach(entry => {
+                // Використовуємо Object.entries, щоб дістати і КЛЮЧ, і САМЕ СЛОВО
+                Object.entries(data).forEach(([key, entry]) => {
                     trainingData.push({ input: entry.word, output: entry.answer });
+                    
+                    // Створюємо контейнер для рядка
                     const newEntry = document.createElement('div');
                     newEntry.className = 'db-entry';
-                    newEntry.innerText = `[FIREBASE] Слово: "${entry.word}" -> Числа: [${entry.encrypted}] | Результат: ${entry.answer === 'ПОЗИТИВ' ? '1' : '0'}`;
+                    
+                    // Створюємо текст
+                    const textSpan = document.createElement('span');
+                    textSpan.innerText = `[FIREBASE] "${entry.word}" -> [${entry.encrypted}] | Відповідь: ${entry.answer === 'ПОЗИТИВ' ? '1' : '0'}`;
+                    
+                    // Створюємо кнопку точкового видалення
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerText = '❌ Видалити';
+                    deleteBtn.className = 'btn-delete-item';
+                    
+                    // Вішаємо логіку видалення на цю кнопку
+                    deleteBtn.onclick = () => {
+                        // Кажемо базі видалити саме цей унікальний 'key'
+                        remove(ref(db, `ai_memory/words/${key}`));
+                        document.getElementById('aiMood').innerText = `"Слово '${entry.word}' успішно стерто з пам'яті!"`;
+                    };
+
+                    // Додаємо текст і кнопку в рядок, а рядок — на екран
+                    newEntry.appendChild(textSpan);
+                    newEntry.appendChild(deleteBtn);
                     dbView.prepend(newEntry);
                 });
 
                 document.getElementById('cloudStatus').innerText = "✅ Firebase підключено!";
                 net.train(trainingData, { iterations: 50 });
             } else {
-                // Якщо базу стерли, повертаємо її до заводських налаштувань (2 слова)
                 trainingData = [
                     { input: 'супер', output: 'ПОЗИТИВ' },
                     { input: 'жах', output: 'НЕГАТИВ' }
                 ];
                 net.train(trainingData, { iterations: 50 });
-                dbView.innerHTML = '<div class="db-entry" style="color:#ffaaaa;">База даних порожня. Запиши перше слово!</div>';
+                dbView.innerHTML = '<div class="db-entry" style="color:#ffaaaa; justify-content:center;">База даних порожня. Запиши перше слово!</div>';
                 document.getElementById('cloudStatus').innerText = "✅ База чиста. Можна писати з нуля!";
             }
         });
@@ -177,17 +217,14 @@
             document.getElementById('userInput').disabled = true;
         });
 
-        // 4. ВІДПРАВКА ДАНИХ (ІЗ ЗАХИСТОМ ВІД ДУБЛІКАТІВ)
+        // 4. ВІДПРАВКА ДАНИХ
         function handleFeedback(actualAnswer) {
-            // ПЕРЕВІРКА НА ДУБЛІКАТ: чи є слово вже в масиві trainingData?
             let isDuplicate = trainingData.some(entry => entry.input === currentWord);
 
             if (isDuplicate) {
-                // Якщо слово вже є
                 document.getElementById('aiMood').innerText = `"Гей! Я вже знаю слово '${currentWord}'! Не дури мене дублями!"`;
                 document.getElementById('ai-answer-box').innerText = "Слово вже в базі! Спробуй інше.";
             } else {
-                // Якщо слово нове
                 if (currentGuess === actualAnswer) {
                     aiCoins += 1;
                     document.getElementById('aiMood').innerText = `"ЄЄЄ! Нове слово і монетки летять у хмару!"`;
@@ -206,7 +243,6 @@
                 document.getElementById('ai-answer-box').innerText = "Записано! Давай наступне.";
             }
 
-            // Повертаємо інтерфейс
             document.getElementById('btnGuess').style.display = 'inline-block';
             document.getElementById('btnPos').style.display = 'none';
             document.getElementById('btnNeg').style.display = 'none';
@@ -220,11 +256,9 @@
 
         // 5. КНОПКА ЗНИЩЕННЯ БАЗИ (WIPE)
         document.getElementById('btnClear').addEventListener('click', () => {
-            // Виводимо вікно з попередженням
-            let confirmWipe = confirm("УВАГА! Ти точно хочеш стерти ШІ всю пам'ять і обнулити монети? Цю дію неможливо скасувати!");
+            let confirmWipe = confirm("УВАГА! Ти точно хочеш стерти ШІ всю пам'ять і обнулити монети?");
             
             if (confirmWipe) {
-                // Видаляємо папку 'words' і обнуляємо монети у Firebase
                 remove(wordsRef);
                 set(coinsRef, 0);
                 document.getElementById('aiMood').innerText = `"Моя пам'ять стерта... Хто я? Де я?"`;
